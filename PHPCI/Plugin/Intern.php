@@ -1,0 +1,115 @@
+<?php
+
+namespace PHPCI\Plugin;
+
+use PHPCI\Builder;
+use PHPCI\Helper\Lang;
+use PHPCI\Model\Build;
+
+
+/**
+ * Intern plugin
+ * @author       Michał Nosek <michal.nosek@velis.pl>
+ * @package      PHPCI
+ * @subpackage   Plugins
+ */
+class Intern implements \PHPCI\Plugin
+{
+    protected $phpci;
+    protected $build;
+    protected $executable;
+    protected $config;
+    protected $vars;
+
+
+    /**
+     * Standard Constructor
+     *
+     * @param Builder $phpci
+     * @param Build   $build
+     * @param array   $options
+     */
+    public function __construct(Builder $phpci, Build $build, array $options = array())
+    {
+        $this->phpci    = $phpci;
+        $this->build    = $build;
+        $this->config   = array();
+
+        if (isset($options['executable'])) {
+            $this->executable = $options['executable'];
+        } else {
+            $this->executable = $this->phpci->findBinary('intern-runner');
+        }
+
+
+        if (isset($options['config'])) {
+            $this->config = $options['config'];
+        }
+
+        if (isset($options['vars'])) {
+            $this->vars = $options['vars'];
+        }
+
+    }
+
+
+    /**
+     * Runs intern tests.
+     */
+    public function execute()
+    {
+        $curdir = getcwd();
+        chdir($this->phpci->buildPath);
+
+        $intern = $this->executable;
+
+        if (!$intern) {
+            $this->phpci->logFailure(Lang::get('could_not_find', 'intern-runner'));
+            return false;
+        }
+
+        if (empty($this->config)) {
+            $this->phpci->logFailure('Config file not specified');
+        }
+
+
+        foreach ($this->config as $configFile) {
+            if (!file_exists($configFile)) {
+                $this->phpci->logFailure('Config file: ' . $configFile . ' not found!');
+            }
+
+            $success = $this->phpci->executeCommand($intern . '  config=' . $configFile . $this->prepareVars() . ' reporters=junit');
+            
+            $xml = file_get_contents('report.xml');
+
+            $parser = new Parser($this->phpci, $xml);
+            $output = $parser->parse();
+    
+
+          $this->build->storeMeta('intern-summary', $output);
+             
+        
+        }
+
+        chdir($curdir);
+
+        return true;
+    }
+
+
+    /**
+     * Prepares additional vars string
+     */
+    public function prepareVars()
+    {
+        if (!empty($this->vars)) {
+            $varsString = '';
+
+            foreach ($this->vars as $var) {
+                $varsString = $varsString . ' ' . $var;
+            }
+
+           return $varsString; 
+        }
+    }
+}

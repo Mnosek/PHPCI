@@ -5,6 +5,7 @@ namespace PHPCI\Plugin;
 use PHPCI\Builder;
 use PHPCI\Helper\Lang;
 use PHPCI\Model\Build;
+use PHPCI\Plugin\Util\TestResultParsers\Intern as Parser;
 
 
 /**
@@ -20,6 +21,10 @@ class Intern implements \PHPCI\Plugin
     protected $executable;
     protected $config;
     protected $vars;
+    protected $failures = 0;
+    protected $timetaken = 0;
+    protected $tests = 0;
+    protected $output = array();
 
 
     /**
@@ -82,14 +87,35 @@ class Intern implements \PHPCI\Plugin
             
             $xml = file_get_contents('report.xml');
 
-            $parser = new Parser($this->phpci, $xml);
-            $output = $parser->parse();
-    
+            if (!$xml) {
+                $this->phpci->logFailure('Report file not found!');
+                return false;
+            }
 
-          $this->build->storeMeta('intern-summary', $output);
-             
-        
+
+            $parser = new Parser($this->phpci, $xml);
+
+            $this->output = array_merge($this->output, $parser->parse());
+
+            $this->failures = $this->failures + $parser->getTotalFailures();
+            $this->timetaken = $this->timetaken + $parser->getTotalTimeTaken();
+            $this->tests = $this->tests + $parser->getTotalTests();   
         }
+
+        if (!$this->tests) {
+            $this->phpci->logFailure('No tests performed!');
+            return false;
+        }
+
+        $this->build->storeMeta('intern-summary', $this->output);     
+
+        $meta = array(  'tests'     => $this->tests,
+                        'timetaken' => $this->timetaken,
+                        'failure'   => $this->failures
+        );
+
+        $this->build->storeMeta('intern-meta', $meta);
+        $this->build->storeMeta('intern-errors', $this->failures);
 
         chdir($curdir);
 

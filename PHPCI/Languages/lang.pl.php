@@ -177,6 +177,7 @@ Services</a> repozytoria Bitbucket.',
     'phpcs_errors' => 'Błędy PHPCS',
     'phplint_errors' => 'Błędy Lint',
     'phpunit_errors' => 'Błędy PHPUnit',
+    'intern_errors' => 'Błędy Intern',
     'phpdoccheck_warnings' => 'Brakuje sekcji DocBlock',
     'issues' => 'Problemy',
 

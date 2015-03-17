@@ -119,6 +119,9 @@ class Intern implements \PHPCI\Plugin
 
         chdir($curdir);
 
+        if ($this->failures) {
+            return false;
+        }
         return true;
     }
 
